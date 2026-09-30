@@ -4275,7 +4275,7 @@ func (h *Handler) CompleteTask(w http.ResponseWriter, r *http.Request) {
 	taskID := chi.URLParam(r, "taskId")
 
 	// Verify the caller owns this task's workspace.
-	_, workspaceID, ok := h.requireDaemonTaskAccessWithWorkspace(w, r, taskID)
+	claimedTask, workspaceID, ok := h.requireDaemonTaskAccessWithWorkspace(w, r, taskID)
 	if !ok {
 		return
 	}
@@ -4327,12 +4327,30 @@ func (h *Handler) CompleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var responseFence *service.TaskResponseCompletionFence
+	if claimedTask.Status == "running" {
+		finalized, err := h.TaskService.FinalizeCompletionOutputWithFence(r.Context(), claimedTask, workspaceID, req.Output)
+		if err != nil {
+			slog.Warn("complete task response finalization failed",
+				"task_id", taskID,
+				"error", err,
+			)
+			// Finalization-plane failures must not be rewritten as execution failures.
+			// A 503 makes the daemon retry the terminal callback without re-running the
+			// agent and without persisting the raw model/harness output.
+			writeError(w, http.StatusServiceUnavailable, "response finalization unavailable")
+			return
+		}
+		req.Output = finalized.Output
+		responseFence = finalized.Fence
+	}
+
 	result, _ := json.Marshal(req)
 	// MUL-5305: SessionRolloutMissing is applied inside CompleteTask's terminal
 	// transaction (force session_id NULL + flag the row), so an auto-retry the
 	// same commit creates and wakes can never observe the withheld pointer or a
 	// missing continuity-gap flag.
-	task, transitioned, err := h.TaskService.CompleteTaskWithTransition(r.Context(), parseUUID(taskID), result, req.SessionID, req.WorkDir, req.BranchName, req.SessionRolloutMissing, req.RetiredSessionID, req.DurableWorkDir)
+	task, transitioned, err := h.TaskService.CompleteTaskWithResponseFenceTransition(r.Context(), parseUUID(taskID), result, req.SessionID, req.WorkDir, req.BranchName, req.SessionRolloutMissing, req.RetiredSessionID, req.DurableWorkDir, responseFence)
 	if err != nil {
 		// A CompleteTask error is an infrastructure failure (transaction /
 		// assistant-outcome write), not a bad request: an already-finalized
