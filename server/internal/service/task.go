@@ -4566,8 +4566,10 @@ func (s *TaskService) completeTask(ctx context.Context, taskID pgtype.UUID, resu
 			Since:    task.StartedAt,
 		})
 		// A scheduled wakeup check that found nothing new ends with a check-in
-		// instead of a comment (see IssueWakeupService.CheckIn).
-		if !suppressNoActionComment && !agentCommented && !HasWakeupCheckin(task) {
+		// instead of a comment (see IssueWakeupService.CheckIn). Enforced
+		// Response Engine completions still post their standardized terminal
+		// comment when an earlier progress comment exists.
+		if !suppressNoActionComment && (!agentCommented || fence != nil) && !HasWakeupCheckin(task) {
 			var payload protocol.TaskCompletedPayload
 			if err := json.Unmarshal(result, &payload); err == nil {
 				if payload.Output != "" {
