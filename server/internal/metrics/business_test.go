@@ -55,6 +55,26 @@ func TestBusinessMetricsLifecycleCountersAndGauge(t *testing.T) {
 	}
 }
 
+func TestBusinessMetricsResponseEngineObserveUsesBoundedResultLabels(t *testing.T) {
+	m := NewBusinessMetrics()
+
+	m.RecordResponseEngineObserve(ResponseEngineObserveSuccess, 25*time.Millisecond)
+	m.RecordResponseEngineObserve("task-123-user-controlled", 10*time.Millisecond)
+
+	if got := testutil.ToFloat64(m.responseEngineObserve.WithLabelValues(ResponseEngineObserveSuccess)); got != 1 {
+		t.Fatalf("observe success counter = %v, want 1", got)
+	}
+	if got := testutil.ToFloat64(m.responseEngineObserve.WithLabelValues(ResponseEngineObserveOther)); got != 1 {
+		t.Fatalf("observe normalized other counter = %v, want 1", got)
+	}
+	if got := testutil.CollectAndCount(m.responseEngineObserve); got != 7 {
+		t.Fatalf("observe result series count = %d, want 7 bounded result series", got)
+	}
+	if got := testutil.CollectAndCount(m.responseEngineObserveDuration); got != 2 {
+		t.Fatalf("observe duration series count = %d, want only observed result series", got)
+	}
+}
+
 func TestBusinessMetricsFailureReasonUsesCanonicalClassifier(t *testing.T) {
 	m := NewBusinessMetrics()
 
@@ -140,6 +160,7 @@ func TestBusinessMetricsRegistryExposesAllFamilies(t *testing.T) {
 	m.ObserveChatClaimLastSessionQuery(0.01)
 	m.ObserveChatClaimRolloutMissingQuery(0.01)
 	m.RecordIssueMetadataMutation("set", "changed", 10*time.Millisecond)
+	m.RecordResponseEngineObserve(ResponseEngineObserveSuccess, 10*time.Millisecond)
 	m.RecordLLMUsage("issue", "local", "codex", "gpt-5.4", 1, 1, 1, 1, 0)
 	m.RecordLLMUsage("issue", "local", "custom-provider", "custom-model", 1, 0, 0, 0, 0)
 

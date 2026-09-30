@@ -12,12 +12,14 @@ import (
 
 func TestHTTPTaskResponseFinalizerPostsAuthenticatedStructuredRequest(t *testing.T) {
 	var gotAuth string
+	var gotMode string
 	var gotInput TaskResponseFinalizationInput
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/internal/v1/response/finalize" {
 			t.Fatalf("path=%q", r.URL.Path)
 		}
 		gotAuth = r.Header.Get("Authorization")
+		gotMode = r.Header.Get("X-Response-Engine-Mode")
 		if got := r.Header.Get("Content-Type"); got != "application/json" {
 			t.Fatalf("content-type=%q", got)
 		}
@@ -32,6 +34,7 @@ func TestHTTPTaskResponseFinalizerPostsAuthenticatedStructuredRequest(t *testing
 		BaseURL: server.URL + "/",
 		Token:   "secret-token",
 		Timeout: time.Second,
+		Mode:    ResponseEngineObserve,
 	})
 	if err != nil {
 		t.Fatalf("NewHTTPTaskResponseFinalizer: %v", err)
@@ -57,6 +60,9 @@ func TestHTTPTaskResponseFinalizerPostsAuthenticatedStructuredRequest(t *testing
 	}
 	if gotAuth != "Bearer secret-token" {
 		t.Fatalf("authorization=%q", gotAuth)
+	}
+	if gotMode != string(ResponseEngineObserve) {
+		t.Fatalf("response engine mode header=%q, want OBSERVE", gotMode)
 	}
 	if gotInput.ResponseID != input.ResponseID || gotInput.RawOutput != "raw" {
 		t.Fatalf("input=%+v", gotInput)
