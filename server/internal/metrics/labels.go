@@ -64,6 +64,8 @@ var businessMetricLabels = map[string][]string{
 	"multica_agent_runtime_lookup_total":               {labelSource, labelResult},
 	"multica_issue_metadata_mutation_total":            {labelOp, labelResult},
 	"multica_issue_metadata_mutation_duration_seconds": {labelOp, labelResult},
+	"multica_response_engine_observe_total":            {labelResult},
+	"multica_response_engine_observe_duration_seconds": {labelResult},
 
 	// PR3 funnel / community / commercial.
 	"multica_signup_total":                             {labelSignupSource},

@@ -1,0 +1,42 @@
+# Optional Response Engine wiring for bounded OBSERVE/ENFORCE rollout.
+#
+# Use only when the internal Response Engine service is deployed on the shared
+# external Docker network:
+#
+#   docker network create controltower-response
+#
+# For an unpublished/current-checkout candidate, build the backend from this
+# exact source tree so the binary contains the Response Engine code. Set COMMIT
+# to the exact candidate SHA first so runtime build-info readback is attributable:
+#
+#   COMMIT=<exact-candidate-sha>
+#   docker compose -f docker-compose.selfhost.yml -f docker-compose.selfhost.build.yml -f docker-compose.response-engine.yml up -d --build
+#
+# If the backend candidate has already been published as an image, use the
+# normal selfhost + response-engine files and set MULTICA_BACKEND_IMAGE /
+# MULTICA_IMAGE_TAG to that exact published image.
+#
+# ENFORCE defaults to false. G5 Observe must pass before enabling it.
+name: multica
+
+services:
+  backend:
+    environment:
+      RESPONSE_ENGINE_V1_ENABLED: ${RESPONSE_ENGINE_V1_ENABLED:-false}
+      RESPONSE_ENGINE_V1_ENFORCE: ${RESPONSE_ENGINE_V1_ENFORCE:-false}
+      RESPONSE_ENGINE_V1_URL: ${RESPONSE_ENGINE_V1_URL:-http://response-engine:9188}
+      RESPONSE_ENGINE_V1_TOKEN: ${RESPONSE_ENGINE_V1_TOKEN:?RESPONSE_ENGINE_V1_TOKEN must be set when Response Engine overlay is used}
+      # Dedicated Prometheus listener used for bounded G5 start/end snapshots.
+      # It binds all interfaces inside the container so Docker can forward it,
+      # while the published host port below is loopback-only.
+      METRICS_ADDR: "0.0.0.0:9090"
+    ports:
+      - "127.0.0.1:${RESPONSE_ENGINE_V1_METRICS_HOST_PORT:-19090}:9090"
+    networks:
+      default:
+      response_engine:
+
+networks:
+  response_engine:
+    external: true
+    name: ${CONTROLTOWER_RESPONSE_NETWORK:-controltower-response}

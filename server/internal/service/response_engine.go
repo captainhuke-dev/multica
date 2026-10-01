@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	obsmetrics "github.com/multica-ai/multica/server/internal/metrics"
 	"github.com/multica-ai/multica/server/internal/util"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
@@ -128,9 +130,11 @@ func (s *TaskService) FinalizeCompletionOutputWithFence(
 	if mode == ResponseEngineLegacy {
 		return FinalizedTaskResponse{Output: rawOutput}, nil
 	}
+	observeStarted := time.Now()
 
 	if s.ResponseFinalizer == nil {
 		if mode == ResponseEngineObserve {
+			s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveUnavailable, time.Since(observeStarted))
 			return FinalizedTaskResponse{Output: rawOutput}, nil
 		}
 		return FinalizedTaskResponse{}, ErrResponseFinalizerUnavailable
@@ -139,6 +143,7 @@ func (s *TaskService) FinalizeCompletionOutputWithFence(
 	input, err := s.buildTaskResponseFinalizationInput(ctx, task, workspaceID, rawOutput)
 	if err != nil {
 		if mode == ResponseEngineObserve {
+			s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveSnapshotError, time.Since(observeStarted))
 			slog.Warn("response engine observe snapshot failed; keeping legacy output",
 				"task_id", util.UUIDToString(task.ID), "error", err)
 			return FinalizedTaskResponse{Output: rawOutput}, nil
@@ -149,9 +154,24 @@ func (s *TaskService) FinalizeCompletionOutputWithFence(
 	result, err := s.ResponseFinalizer.FinalizeTaskCompletion(ctx, input)
 	if mode == ResponseEngineObserve {
 		if err != nil {
+			s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveFinalizerError, time.Since(observeStarted))
 			slog.Warn("response engine observe finalization failed; keeping legacy output",
 				"task_id", input.TaskID, "response_id", input.ResponseID, "error", err)
+			return FinalizedTaskResponse{Output: rawOutput}, nil
 		}
+		if strings.TrimSpace(result.Rendered) == "" {
+			s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveInvalidRendered, time.Since(observeStarted))
+			slog.Warn("response engine observe returned empty rendered response; keeping legacy output",
+				"task_id", input.TaskID, "response_id", input.ResponseID)
+			return FinalizedTaskResponse{Output: rawOutput}, nil
+		}
+		if err := s.validateTaskResponseSnapshotCurrent(ctx, task, input); err != nil {
+			s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveStale, time.Since(observeStarted))
+			slog.Warn("response engine observe snapshot became stale; keeping legacy output",
+				"task_id", input.TaskID, "response_id", input.ResponseID, "error", err)
+			return FinalizedTaskResponse{Output: rawOutput}, nil
+		}
+		s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveSuccess, time.Since(observeStarted))
 		return FinalizedTaskResponse{Output: rawOutput}, nil
 	}
 	if err != nil {

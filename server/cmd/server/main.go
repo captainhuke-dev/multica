@@ -181,6 +181,7 @@ func parseResponseEngineStartupConfig(
 		BaseURL: baseURL,
 		Token:   token,
 		Timeout: responseEngineHTTPTimeout,
+		Mode:    mode,
 	})
 	if err != nil {
 		return responseEngineStartupConfig{}, err

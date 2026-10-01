@@ -23,12 +23,14 @@ type HTTPTaskResponseFinalizerConfig struct {
 	BaseURL string
 	Token   string
 	Timeout time.Duration
+	Mode    ResponseEngineMode
 }
 
 type HTTPTaskResponseFinalizer struct {
 	endpoint string
 	token    string
 	client   *http.Client
+	mode     ResponseEngineMode
 }
 
 func NewHTTPTaskResponseFinalizer(cfg HTTPTaskResponseFinalizerConfig) (*HTTPTaskResponseFinalizer, error) {
@@ -60,6 +62,7 @@ func NewHTTPTaskResponseFinalizer(cfg HTTPTaskResponseFinalizerConfig) (*HTTPTas
 		endpoint: parsed.String(),
 		token:    token,
 		client:   &http.Client{Timeout: cfg.Timeout},
+		mode:     effectiveResponseEngineMode(cfg.Mode),
 	}, nil
 }
 
@@ -78,6 +81,9 @@ func (c *HTTPTaskResponseFinalizer) FinalizeTaskCompletion(
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Bearer "+c.token)
+	if c.mode == ResponseEngineObserve {
+		req.Header.Set("X-Response-Engine-Mode", string(ResponseEngineObserve))
+	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {

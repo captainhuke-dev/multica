@@ -163,6 +163,45 @@ func TestCompleteTask_ResponseEngineObserveFailureDoesNotBlockLegacyOutput(t *te
 	}
 }
 
+func TestCompleteTask_ResponseEngineObserveEmptyRenderedKeepsLegacyOutput(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+	agentID, _, issueID, taskID := setupResponseEngineIssueTask(t, 91013)
+	fake := &fakeTaskResponseFinalizer{result: service.TaskResponseFinalizationResult{Rendered: "   "}}
+	configureResponseEngineForTest(t, service.ResponseEngineObserve, fake)
+
+	w := completeResponseEngineTask(t, taskID, "raw empty shadow")
+	if w.Code != http.StatusOK {
+		t.Fatalf("CompleteTask status=%d body=%s", w.Code, w.Body.String())
+	}
+	if got := latestAgentIssueComment(t, issueID, agentID); got != "raw empty shadow" {
+		t.Fatalf("comment=%q, want raw empty shadow", got)
+	}
+}
+
+func TestCompleteTask_ResponseEngineObserveStaleShadowKeepsLegacyOutput(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+	agentID, _, issueID, taskID := setupResponseEngineIssueTask(t, 91014)
+	fake := &fakeTaskResponseFinalizer{
+		result: service.TaskResponseFinalizationResult{Rendered: "shadow stale"},
+		onCall: func(service.TaskResponseFinalizationInput) {
+			dbfx.Exec(t, `UPDATE issue SET revision = revision + 1, updated_at=now() WHERE id=$1`, issueID)
+		},
+	}
+	configureResponseEngineForTest(t, service.ResponseEngineObserve, fake)
+
+	w := completeResponseEngineTask(t, taskID, "raw stale shadow survives")
+	if w.Code != http.StatusOK {
+		t.Fatalf("CompleteTask status=%d body=%s", w.Code, w.Body.String())
+	}
+	if got := latestAgentIssueComment(t, issueID, agentID); got != "raw stale shadow survives" {
+		t.Fatalf("comment=%q, want raw stale shadow survives", got)
+	}
+}
+
 func TestCompleteTask_ResponseEngineEnforcePersistsRenderedOnly(t *testing.T) {
 	if testHandler == nil {
 		t.Skip("database not available")

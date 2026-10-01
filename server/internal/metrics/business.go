@@ -14,7 +14,17 @@ var chatClaimResumeQueryDurationBuckets = []float64{0.001, 0.0025, 0.005, 0.01, 
 
 var runtimeSweepStageDurationBuckets = []float64{0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 15, 30, 60}
 
+var responseEngineObserveDurationBuckets = []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 15, 30}
+
 const (
+	ResponseEngineObserveSuccess         = "success"
+	ResponseEngineObserveUnavailable     = "unavailable"
+	ResponseEngineObserveSnapshotError   = "snapshot_error"
+	ResponseEngineObserveFinalizerError  = "finalizer_error"
+	ResponseEngineObserveInvalidRendered = "invalid_rendered"
+	ResponseEngineObserveStale           = "stale"
+	ResponseEngineObserveOther           = "other"
+
 	RuntimeSweepStageLiveness                 = "runtime_liveness"
 	RuntimeSweepStageOfflineTasks             = "offline_runtime_tasks"
 	RuntimeSweepStageReconnectRetries         = "runtime_reconnect_retries"
@@ -82,6 +92,8 @@ type BusinessMetrics struct {
 	agentRuntimeLookup            *prometheus.CounterVec
 	issueMetadataMutation         *prometheus.CounterVec
 	issueMetadataMutationDuration *prometheus.HistogramVec
+	responseEngineObserve         *prometheus.CounterVec
+	responseEngineObserveDuration *prometheus.HistogramVec
 
 	activeMu    sync.Mutex
 	activeTasks map[string]activeTaskLabels
@@ -297,6 +309,14 @@ func NewBusinessMetrics() *BusinessMetrics {
 			Namespace: "multica", Subsystem: "issue_metadata", Name: "mutation_duration_seconds",
 			Help: "Duration of issue metadata database work by operation and bounded result, including fallback reads after conditional no-ops.", Buckets: chatClaimResumeQueryDurationBuckets,
 		}, metricLabels("multica_issue_metadata_mutation_duration_seconds")),
+		responseEngineObserve: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: "multica", Subsystem: "response_engine", Name: "observe_total",
+			Help: "Total Response Engine OBSERVE attempts by bounded result.",
+		}, metricLabels("multica_response_engine_observe_total")),
+		responseEngineObserveDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "multica", Subsystem: "response_engine", Name: "observe_duration_seconds",
+			Help: "Duration of Response Engine OBSERVE attempts by bounded result.", Buckets: responseEngineObserveDurationBuckets,
+		}, metricLabels("multica_response_engine_observe_duration_seconds")),
 		activeTasks: map[string]activeTaskLabels{},
 		events:      newBusinessEventMetrics(),
 	}
@@ -312,6 +332,17 @@ func NewBusinessMetrics() *BusinessMetrics {
 		for _, result := range AllRuntimeLookupResults() {
 			m.agentRuntimeLookup.WithLabelValues(source, result).Add(0)
 		}
+	}
+	for _, result := range []string{
+		ResponseEngineObserveSuccess,
+		ResponseEngineObserveUnavailable,
+		ResponseEngineObserveSnapshotError,
+		ResponseEngineObserveFinalizerError,
+		ResponseEngineObserveInvalidRendered,
+		ResponseEngineObserveStale,
+		ResponseEngineObserveOther,
+	} {
+		m.responseEngineObserve.WithLabelValues(result).Add(0)
 	}
 	return m
 }
@@ -354,7 +385,30 @@ func (m *BusinessMetrics) Collectors() []prometheus.Collector {
 		m.agentRuntimeLookup,
 		m.issueMetadataMutation,
 		m.issueMetadataMutationDuration,
+		m.responseEngineObserve,
+		m.responseEngineObserveDuration,
 	}, m.events.collectors()...)
+}
+
+func (m *BusinessMetrics) RecordResponseEngineObserve(result string, duration time.Duration) {
+	if m == nil {
+		return
+	}
+	switch result {
+	case ResponseEngineObserveSuccess,
+		ResponseEngineObserveUnavailable,
+		ResponseEngineObserveSnapshotError,
+		ResponseEngineObserveFinalizerError,
+		ResponseEngineObserveInvalidRendered,
+		ResponseEngineObserveStale:
+	default:
+		result = ResponseEngineObserveOther
+	}
+	if duration < 0 {
+		duration = 0
+	}
+	m.responseEngineObserve.WithLabelValues(result).Inc()
+	m.responseEngineObserveDuration.WithLabelValues(result).Observe(duration.Seconds())
 }
 
 // RecordIssueMetadataMutation records the UPDATE and, for a no-row result, its
