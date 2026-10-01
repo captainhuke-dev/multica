@@ -4,7 +4,17 @@
 # external Docker network:
 #
 #   docker network create controltower-response
-#   docker compose -f docker-compose.selfhost.yml -f docker-compose.response-engine.yml up -d
+#
+# For an unpublished/current-checkout candidate, build the backend from this
+# exact source tree so the binary contains the Response Engine code. Set COMMIT
+# to the exact candidate SHA first so runtime build-info readback is attributable:
+#
+#   COMMIT=<exact-candidate-sha>
+#   docker compose -f docker-compose.selfhost.yml -f docker-compose.selfhost.build.yml -f docker-compose.response-engine.yml up -d --build
+#
+# If the backend candidate has already been published as an image, use the
+# normal selfhost + response-engine files and set MULTICA_BACKEND_IMAGE /
+# MULTICA_IMAGE_TAG to that exact published image.
 #
 # ENFORCE defaults to false. G5 Observe must pass before enabling it.
 name: multica
