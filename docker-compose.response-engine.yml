@@ -1,0 +1,26 @@
+# Optional Response Engine wiring for bounded OBSERVE/ENFORCE rollout.
+#
+# Use only when the internal Response Engine service is deployed on the shared
+# external Docker network:
+#
+#   docker network create controltower-response
+#   docker compose -f docker-compose.selfhost.yml -f docker-compose.response-engine.yml up -d
+#
+# ENFORCE defaults to false. G5 Observe must pass before enabling it.
+name: multica
+
+services:
+  backend:
+    environment:
+      RESPONSE_ENGINE_V1_ENABLED: ${RESPONSE_ENGINE_V1_ENABLED:-false}
+      RESPONSE_ENGINE_V1_ENFORCE: ${RESPONSE_ENGINE_V1_ENFORCE:-false}
+      RESPONSE_ENGINE_V1_URL: ${RESPONSE_ENGINE_V1_URL:-http://response-engine:9188}
+      RESPONSE_ENGINE_V1_TOKEN: ${RESPONSE_ENGINE_V1_TOKEN:?RESPONSE_ENGINE_V1_TOKEN must be set when Response Engine overlay is used}
+    networks:
+      default:
+      response_engine:
+
+networks:
+  response_engine:
+    external: true
+    name: ${CONTROLTOWER_RESPONSE_NETWORK:-controltower-response}
