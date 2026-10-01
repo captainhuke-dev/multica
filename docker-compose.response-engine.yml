@@ -26,6 +26,7 @@ services:
       RESPONSE_ENGINE_V1_ENFORCE: ${RESPONSE_ENGINE_V1_ENFORCE:-false}
       RESPONSE_ENGINE_V1_URL: ${RESPONSE_ENGINE_V1_URL:-http://response-engine:9188}
       RESPONSE_ENGINE_V1_TOKEN: ${RESPONSE_ENGINE_V1_TOKEN:?RESPONSE_ENGINE_V1_TOKEN must be set when Response Engine overlay is used}
+      RESPONSE_ENGINE_V1_HTTP_TIMEOUT_SECONDS: ${RESPONSE_ENGINE_V1_HTTP_TIMEOUT_SECONDS:-45}
       # Dedicated Prometheus listener used for bounded G5 start/end snapshots.
       # It binds all interfaces inside the container so Docker can forward it,
       # while the published host port below is loopback-only.
