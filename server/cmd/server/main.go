@@ -162,7 +162,18 @@ type responseEngineStartupConfig struct {
 	Finalizer service.TaskResponseFinalizer
 }
 
-const responseEngineHTTPTimeout = 15 * time.Second
+const (
+	responseEngineHTTPTimeoutEnv     = "RESPONSE_ENGINE_V1_HTTP_TIMEOUT_SECONDS"
+	defaultResponseEngineHTTPTimeout = 45 * time.Second
+)
+
+func responseEngineHTTPTimeoutFromEnv() time.Duration {
+	seconds := envPositiveInt(
+		responseEngineHTTPTimeoutEnv,
+		int(defaultResponseEngineHTTPTimeout/time.Second),
+	)
+	return time.Duration(seconds) * time.Second
+}
 
 func parseResponseEngineStartupConfig(
 	enabledRaw string,
@@ -180,7 +191,7 @@ func parseResponseEngineStartupConfig(
 	finalizer, err := service.NewHTTPTaskResponseFinalizer(service.HTTPTaskResponseFinalizerConfig{
 		BaseURL: baseURL,
 		Token:   token,
-		Timeout: responseEngineHTTPTimeout,
+		Timeout: responseEngineHTTPTimeoutFromEnv(),
 		Mode:    mode,
 	})
 	if err != nil {

@@ -2,9 +2,32 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"github.com/multica-ai/multica/server/internal/service"
 )
+
+func TestResponseEngineHTTPTimeoutFromEnv(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want time.Duration
+	}{
+		{name: "default", raw: "", want: 45 * time.Second},
+		{name: "override", raw: "60", want: 60 * time.Second},
+		{name: "invalid zero falls back", raw: "0", want: 45 * time.Second},
+		{name: "invalid text falls back", raw: "nope", want: 45 * time.Second},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv(responseEngineHTTPTimeoutEnv, tc.raw)
+			if got := responseEngineHTTPTimeoutFromEnv(); got != tc.want {
+				t.Fatalf("responseEngineHTTPTimeoutFromEnv()=%s, want %s", got, tc.want)
+			}
+		})
+	}
+}
 
 func TestParseResponseEngineStartupConfigDisabledRequiresNoEndpoint(t *testing.T) {
 	cfg, err := parseResponseEngineStartupConfig("", "", "", "")
