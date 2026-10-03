@@ -75,6 +75,31 @@ func TestBusinessMetricsResponseEngineObserveUsesBoundedResultLabels(t *testing.
 	}
 }
 
+func TestBusinessMetricsResponseEngineQualificationUsesBoundedModeAndResultLabels(t *testing.T) {
+	m := NewBusinessMetrics()
+
+	m.RecordResponseEngineQualification(ResponseEngineQualificationModeEnforce, ResponseEngineObserveSuccess, 25*time.Millisecond)
+	m.RecordResponseEngineQualification(ResponseEngineQualificationModeEnforce, "task-123-user-controlled", 10*time.Millisecond)
+	m.RecordResponseEngineQualification("user-controlled-mode", ResponseEngineObserveSuccess, 5*time.Millisecond)
+	m.RecordResponseEngineObserve(ResponseEngineObserveSuccess, 15*time.Millisecond)
+
+	if got := testutil.ToFloat64(m.responseEngineQualification.WithLabelValues(ResponseEngineQualificationModeEnforce, ResponseEngineObserveSuccess)); got != 1 {
+		t.Fatalf("qualification enforce success counter = %v, want 1", got)
+	}
+	if got := testutil.ToFloat64(m.responseEngineQualification.WithLabelValues(ResponseEngineQualificationModeEnforce, ResponseEngineObserveOther)); got != 1 {
+		t.Fatalf("qualification enforce normalized other counter = %v, want 1", got)
+	}
+	if got := testutil.ToFloat64(m.responseEngineQualification.WithLabelValues(ResponseEngineQualificationModeObserve, ResponseEngineObserveSuccess)); got != 1 {
+		t.Fatalf("qualification observe success counter = %v, want 1 from OBSERVE dual-record", got)
+	}
+	if got := testutil.CollectAndCount(m.responseEngineQualification); got != 14 {
+		t.Fatalf("qualification counter series count = %d, want 14 prewarmed bounded mode/result series", got)
+	}
+	if got := testutil.CollectAndCount(m.responseEngineQualificationDuration); got != 3 {
+		t.Fatalf("qualification duration series count = %d, want only three observed mode/result series", got)
+	}
+}
+
 func TestBusinessMetricsFailureReasonUsesCanonicalClassifier(t *testing.T) {
 	m := NewBusinessMetrics()
 

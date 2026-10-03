@@ -81,7 +81,10 @@ func (c *HTTPTaskResponseFinalizer) FinalizeTaskCompletion(
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Bearer "+c.token)
-	if c.mode == ResponseEngineObserve {
+	if c.mode == ResponseEngineObserve || c.mode == ResponseEngineEnforce {
+		// The internal OBSERVE header controls Response Engine evidence capture,
+		// not Multica delivery semantics. ENFORCE still returns result.Rendered
+		// below, while the Response Engine records qualification evidence.
 		req.Header.Set("X-Response-Engine-Mode", string(ResponseEngineObserve))
 	}
 
