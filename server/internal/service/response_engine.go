@@ -130,66 +130,74 @@ func (s *TaskService) FinalizeCompletionOutputWithFence(
 	if mode == ResponseEngineLegacy {
 		return FinalizedTaskResponse{Output: rawOutput}, nil
 	}
-	observeStarted := time.Now()
+	qualificationStarted := time.Now()
 
 	if s.ResponseFinalizer == nil {
 		if mode == ResponseEngineObserve {
-			s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveUnavailable, time.Since(observeStarted))
+			s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveUnavailable, time.Since(qualificationStarted))
 			return FinalizedTaskResponse{Output: rawOutput}, nil
 		}
+		s.Metrics.RecordResponseEngineQualification(obsmetrics.ResponseEngineQualificationModeEnforce, obsmetrics.ResponseEngineObserveUnavailable, time.Since(qualificationStarted))
 		return FinalizedTaskResponse{}, ErrResponseFinalizerUnavailable
 	}
 
 	input, err := s.buildTaskResponseFinalizationInput(ctx, task, workspaceID, rawOutput)
 	if err != nil {
 		if mode == ResponseEngineObserve {
-			s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveSnapshotError, time.Since(observeStarted))
+			s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveSnapshotError, time.Since(qualificationStarted))
 			slog.Warn("response engine observe snapshot failed; keeping legacy output",
 				"task_id", util.UUIDToString(task.ID), "error", err)
 			return FinalizedTaskResponse{Output: rawOutput}, nil
 		}
+		s.Metrics.RecordResponseEngineQualification(obsmetrics.ResponseEngineQualificationModeEnforce, obsmetrics.ResponseEngineObserveSnapshotError, time.Since(qualificationStarted))
 		return FinalizedTaskResponse{}, err
 	}
 
 	result, err := s.ResponseFinalizer.FinalizeTaskCompletion(ctx, input)
 	if mode == ResponseEngineObserve {
 		if err != nil {
-			s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveFinalizerError, time.Since(observeStarted))
+			s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveFinalizerError, time.Since(qualificationStarted))
 			slog.Warn("response engine observe finalization failed; keeping legacy output",
 				"task_id", input.TaskID, "response_id", input.ResponseID, "error", err)
 			return FinalizedTaskResponse{Output: rawOutput}, nil
 		}
 		if strings.TrimSpace(result.Rendered) == "" {
-			s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveInvalidRendered, time.Since(observeStarted))
+			s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveInvalidRendered, time.Since(qualificationStarted))
 			slog.Warn("response engine observe returned empty rendered response; keeping legacy output",
 				"task_id", input.TaskID, "response_id", input.ResponseID)
 			return FinalizedTaskResponse{Output: rawOutput}, nil
 		}
 		if err := s.validateTaskResponseSnapshotCurrent(ctx, task, input); err != nil {
-			s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveStale, time.Since(observeStarted))
+			s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveStale, time.Since(qualificationStarted))
 			slog.Warn("response engine observe snapshot became stale; keeping legacy output",
 				"task_id", input.TaskID, "response_id", input.ResponseID, "error", err)
 			return FinalizedTaskResponse{Output: rawOutput}, nil
 		}
-		s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveSuccess, time.Since(observeStarted))
+		s.Metrics.RecordResponseEngineObserve(obsmetrics.ResponseEngineObserveSuccess, time.Since(qualificationStarted))
 		return FinalizedTaskResponse{Output: rawOutput}, nil
 	}
 	if err != nil {
+		s.Metrics.RecordResponseEngineQualification(obsmetrics.ResponseEngineQualificationModeEnforce, obsmetrics.ResponseEngineObserveFinalizerError, time.Since(qualificationStarted))
 		return FinalizedTaskResponse{}, fmt.Errorf("response engine finalization: %w", err)
 	}
 	if strings.TrimSpace(result.Rendered) == "" {
+		s.Metrics.RecordResponseEngineQualification(obsmetrics.ResponseEngineQualificationModeEnforce, obsmetrics.ResponseEngineObserveInvalidRendered, time.Since(qualificationStarted))
 		return FinalizedTaskResponse{}, errors.New("response engine finalization returned empty rendered response")
 	}
 	if err := s.validateTaskResponseSnapshotCurrent(ctx, task, input); err != nil {
+		s.Metrics.RecordResponseEngineQualification(obsmetrics.ResponseEngineQualificationModeEnforce, obsmetrics.ResponseEngineObserveStale, time.Since(qualificationStarted))
 		return FinalizedTaskResponse{}, err
 	}
 	workspaceUUID, err := util.ParseUUID(workspaceID)
 	if err != nil || !workspaceUUID.Valid {
+		s.Metrics.RecordResponseEngineQualification(obsmetrics.ResponseEngineQualificationModeEnforce, obsmetrics.ResponseEngineObserveOther, time.Since(qualificationStarted))
 		return FinalizedTaskResponse{}, errors.New("response engine workspace id is invalid")
 	}
 	if input.Issue == nil {
+		s.Metrics.RecordResponseEngineQualification(obsmetrics.ResponseEngineQualificationModeEnforce, obsmetrics.ResponseEngineObserveOther, time.Since(qualificationStarted))
 		return FinalizedTaskResponse{}, fmt.Errorf("%w: issue snapshot missing", ErrResponseSnapshotStale)
 	}
+	s.Metrics.RecordResponseEngineQualification(obsmetrics.ResponseEngineQualificationModeEnforce, obsmetrics.ResponseEngineObserveSuccess, time.Since(qualificationStarted))
 	return FinalizedTaskResponse{
 		Output: result.Rendered,
 		Fence: &TaskResponseCompletionFence{

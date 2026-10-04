@@ -69,6 +69,35 @@ func TestHTTPTaskResponseFinalizerPostsAuthenticatedStructuredRequest(t *testing
 	}
 }
 
+func TestHTTPTaskResponseFinalizerEnforceRequestsEvidenceWithoutChangingRenderedResult(t *testing.T) {
+	var gotMode string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMode = r.Header.Get("X-Response-Engine-Mode")
+		_ = json.NewEncoder(w).Encode(TaskResponseFinalizationResult{Rendered: "[Goal]\nrendered-enforce"})
+	}))
+	defer server.Close()
+
+	client, err := NewHTTPTaskResponseFinalizer(HTTPTaskResponseFinalizerConfig{
+		BaseURL: server.URL,
+		Token:   "secret-token",
+		Timeout: time.Second,
+		Mode:    ResponseEngineEnforce,
+	})
+	if err != nil {
+		t.Fatalf("NewHTTPTaskResponseFinalizer: %v", err)
+	}
+	got, err := client.FinalizeTaskCompletion(context.Background(), TaskResponseFinalizationInput{ResponseID: "r-enforce"})
+	if err != nil {
+		t.Fatalf("FinalizeTaskCompletion: %v", err)
+	}
+	if got.Rendered != "[Goal]\nrendered-enforce" {
+		t.Fatalf("rendered=%q", got.Rendered)
+	}
+	if gotMode != string(ResponseEngineObserve) {
+		t.Fatalf("response engine evidence mode header=%q, want OBSERVE", gotMode)
+	}
+}
+
 func TestHTTPTaskResponseFinalizerRejectsMissingURLOrToken(t *testing.T) {
 	for _, tc := range []HTTPTaskResponseFinalizerConfig{
 		{Token: "x", Timeout: time.Second},

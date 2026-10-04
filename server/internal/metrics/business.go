@@ -17,6 +17,11 @@ var runtimeSweepStageDurationBuckets = []float64{0.001, 0.0025, 0.005, 0.01, 0.0
 var responseEngineObserveDurationBuckets = []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 15, 30}
 
 const (
+	ResponseEngineQualificationModeObserve = "observe"
+	ResponseEngineQualificationModeEnforce = "enforce"
+)
+
+const (
 	ResponseEngineObserveSuccess         = "success"
 	ResponseEngineObserveUnavailable     = "unavailable"
 	ResponseEngineObserveSnapshotError   = "snapshot_error"
@@ -89,11 +94,13 @@ type BusinessMetrics struct {
 	// the product-source attribution that neither query shape exposes on its
 	// own, including daemon heartbeats, browser polling, and readiness gates.
 	// See labels.go for the closed enum.
-	agentRuntimeLookup            *prometheus.CounterVec
-	issueMetadataMutation         *prometheus.CounterVec
-	issueMetadataMutationDuration *prometheus.HistogramVec
-	responseEngineObserve         *prometheus.CounterVec
-	responseEngineObserveDuration *prometheus.HistogramVec
+	agentRuntimeLookup                  *prometheus.CounterVec
+	issueMetadataMutation               *prometheus.CounterVec
+	issueMetadataMutationDuration       *prometheus.HistogramVec
+	responseEngineObserve               *prometheus.CounterVec
+	responseEngineObserveDuration       *prometheus.HistogramVec
+	responseEngineQualification         *prometheus.CounterVec
+	responseEngineQualificationDuration *prometheus.HistogramVec
 
 	activeMu    sync.Mutex
 	activeTasks map[string]activeTaskLabels
@@ -317,6 +324,14 @@ func NewBusinessMetrics() *BusinessMetrics {
 			Namespace: "multica", Subsystem: "response_engine", Name: "observe_duration_seconds",
 			Help: "Duration of Response Engine OBSERVE attempts by bounded result.", Buckets: responseEngineObserveDurationBuckets,
 		}, metricLabels("multica_response_engine_observe_duration_seconds")),
+		responseEngineQualification: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: "multica", Subsystem: "response_engine", Name: "qualification_total",
+			Help: "Total Response Engine qualification attempts by rollout mode and bounded result.",
+		}, metricLabels("multica_response_engine_qualification_total")),
+		responseEngineQualificationDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "multica", Subsystem: "response_engine", Name: "qualification_duration_seconds",
+			Help: "Duration of Response Engine qualification attempts by rollout mode and bounded result.", Buckets: responseEngineObserveDurationBuckets,
+		}, metricLabels("multica_response_engine_qualification_duration_seconds")),
 		activeTasks: map[string]activeTaskLabels{},
 		events:      newBusinessEventMetrics(),
 	}
@@ -343,6 +358,9 @@ func NewBusinessMetrics() *BusinessMetrics {
 		ResponseEngineObserveOther,
 	} {
 		m.responseEngineObserve.WithLabelValues(result).Add(0)
+		for _, mode := range []string{ResponseEngineQualificationModeObserve, ResponseEngineQualificationModeEnforce} {
+			m.responseEngineQualification.WithLabelValues(mode, result).Add(0)
+		}
 	}
 	return m
 }
@@ -387,6 +405,8 @@ func (m *BusinessMetrics) Collectors() []prometheus.Collector {
 		m.issueMetadataMutationDuration,
 		m.responseEngineObserve,
 		m.responseEngineObserveDuration,
+		m.responseEngineQualification,
+		m.responseEngineQualificationDuration,
 	}, m.events.collectors()...)
 }
 
@@ -409,6 +429,33 @@ func (m *BusinessMetrics) RecordResponseEngineObserve(result string, duration ti
 	}
 	m.responseEngineObserve.WithLabelValues(result).Inc()
 	m.responseEngineObserveDuration.WithLabelValues(result).Observe(duration.Seconds())
+	m.RecordResponseEngineQualification(ResponseEngineQualificationModeObserve, result, duration)
+}
+
+func (m *BusinessMetrics) RecordResponseEngineQualification(mode, result string, duration time.Duration) {
+	if m == nil {
+		return
+	}
+	switch mode {
+	case ResponseEngineQualificationModeObserve, ResponseEngineQualificationModeEnforce:
+	default:
+		return
+	}
+	switch result {
+	case ResponseEngineObserveSuccess,
+		ResponseEngineObserveUnavailable,
+		ResponseEngineObserveSnapshotError,
+		ResponseEngineObserveFinalizerError,
+		ResponseEngineObserveInvalidRendered,
+		ResponseEngineObserveStale:
+	default:
+		result = ResponseEngineObserveOther
+	}
+	if duration < 0 {
+		duration = 0
+	}
+	m.responseEngineQualification.WithLabelValues(mode, result).Inc()
+	m.responseEngineQualificationDuration.WithLabelValues(mode, result).Observe(duration.Seconds())
 }
 
 // RecordIssueMetadataMutation records the UPDATE and, for a no-row result, its
