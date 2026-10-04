@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/multica-ai/multica/server/internal/terminalbudget"
 	"github.com/multica-ai/multica/server/pkg/remotemcp"
 	"time"
 
@@ -521,6 +522,52 @@ func TestPostJSONWithRetry_CtxCancelStopsRetries(t *testing.T) {
 	}
 	if got := calls.Load(); got != 1 {
 		t.Fatalf("expected exactly 1 attempt before cancel, got %d", got)
+	}
+}
+
+type rejectingRoundTripper struct{}
+
+func (rejectingRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("ordinary control-plane HTTP client must not carry terminal callbacks")
+}
+
+func TestNewClientSeparatesControlAndTerminalTimeoutBudgets(t *testing.T) {
+	c := NewClient("http://example.invalid")
+	if got, want := c.client.Timeout, 30*time.Second; got != want {
+		t.Fatalf("control-plane timeout = %s, want %s", got, want)
+	}
+	if got, want := c.terminalClient.Timeout, terminalbudget.CallbackHTTPTimeout; got != want {
+		t.Fatalf("terminal callback timeout = %s, want %s", got, want)
+	}
+	if c.terminalClient.Timeout <= c.client.Timeout {
+		t.Fatalf("terminal callback timeout %s must exceed control-plane timeout %s", c.terminalClient.Timeout, c.client.Timeout)
+	}
+}
+
+func TestCompleteAndFailUseTerminalHTTPClient(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/daemon/tasks/task-complete/complete", "/api/daemon/tasks/task-fail/fail":
+			calls.Add(1)
+			w.WriteHeader(http.StatusOK)
+		default:
+			t.Fatalf("unexpected path %q", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL)
+	c.client = &http.Client{Transport: rejectingRoundTripper{}}
+
+	if err := c.completeTaskWithRetrySchedule(context.Background(), "task-complete", "done", "", "", "", false, "", "", nil); err != nil {
+		t.Fatalf("complete terminal callback: %v", err)
+	}
+	if err := c.failTaskWithRetrySchedule(context.Background(), "task-fail", "boom", "", "", "", "agent_error", false, "", "", nil); err != nil {
+		t.Fatalf("fail terminal callback: %v", err)
+	}
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("terminal callback requests = %d, want 2", got)
 	}
 }
 

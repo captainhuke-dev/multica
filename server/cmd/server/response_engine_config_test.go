@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/multica-ai/multica/server/internal/service"
+	"github.com/multica-ai/multica/server/internal/terminalbudget"
 )
 
 func TestResponseEngineHTTPTimeoutFromEnv(t *testing.T) {
@@ -14,7 +15,8 @@ func TestResponseEngineHTTPTimeoutFromEnv(t *testing.T) {
 		want time.Duration
 	}{
 		{name: "default", raw: "", want: 45 * time.Second},
-		{name: "override", raw: "60", want: 60 * time.Second},
+		{name: "override within terminal budget", raw: "50", want: 50 * time.Second},
+		{name: "override above terminal budget clamps", raw: "60", want: terminalbudget.MaxResponseEngineHTTPTimeout},
 		{name: "invalid zero falls back", raw: "0", want: 45 * time.Second},
 		{name: "invalid text falls back", raw: "nope", want: 45 * time.Second},
 	}
