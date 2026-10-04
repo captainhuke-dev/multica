@@ -914,6 +914,7 @@ export function useIssueSurfaceController({
     isWorkingFilterError: workingFilterError,
     retryWorkingFilter: () => {
       void workingAgentsProjection.refetch();
+      void externalPresenceProjection.refetch();
     },
     sort,
     actions,

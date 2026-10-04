@@ -1189,6 +1189,17 @@ describe("useIssueSurfaceController", () => {
 
     await waitFor(() => expect(result.current.isWorkingFilterError).toBe(true));
     expect(result.current.tableQuerySpec.filters.working_issue_ids).toBeUndefined();
+
+    getWorkspaceExternalPresence.mockResolvedValue({
+      status: "ok",
+      presence: [],
+    });
+    act(() => result.current.retryWorkingFilter());
+
+    await waitFor(() => expect(result.current.isWorkingFilterError).toBe(false));
+    expect(result.current.tableQuerySpec.filters.working_issue_ids).toEqual([
+      "native-issue",
+    ]);
   });
 
   it("combines regular assignees with the independent running-task predicate", async () => {
