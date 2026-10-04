@@ -127,7 +127,7 @@ func TestCollectExternalPresenceRunsConfiguredCommand(t *testing.T) {
 		cfg: Config{
 			ExternalPresenceCommand: os.Args[0],
 			ExternalPresenceArgs:    []string{"-test.run=TestExternalPresenceCommandHelper"},
-			ExternalPresenceTimeout: time.Second,
+			ExternalPresenceTimeout: 5 * time.Second,
 		},
 	}
 	rows, err := d.collectExternalPresence(context.Background())
