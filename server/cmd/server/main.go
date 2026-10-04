@@ -162,7 +162,10 @@ type responseEngineStartupConfig struct {
 	Finalizer service.TaskResponseFinalizer
 }
 
-const responseEngineHTTPTimeout = 15 * time.Second
+// responseEngineHTTPTimeout is a transport envelope, not the G5 latency SLO.
+// It must exceed the bounded provider path so the caller does not report a
+// finalizer transport error while Response Engine is still producing evidence.
+const responseEngineHTTPTimeout = 25 * time.Second
 
 func parseResponseEngineStartupConfig(
 	enabledRaw string,

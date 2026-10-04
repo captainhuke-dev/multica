@@ -2,9 +2,16 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"github.com/multica-ai/multica/server/internal/service"
 )
+
+func TestResponseEngineHTTPTimeoutLeavesTransportHeadroom(t *testing.T) {
+	if responseEngineHTTPTimeout != 25*time.Second {
+		t.Fatalf("responseEngineHTTPTimeout=%s, want 25s transport envelope", responseEngineHTTPTimeout)
+	}
+}
 
 func TestParseResponseEngineStartupConfigDisabledRequiresNoEndpoint(t *testing.T) {
 	cfg, err := parseResponseEngineStartupConfig("", "", "", "")
