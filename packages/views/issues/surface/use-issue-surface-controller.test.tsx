@@ -20,6 +20,7 @@ import type {
   ListIssuesParams,
   ListIssuesResponse,
   WorkspaceWorkingAgent,
+  WorkspaceExternalPresenceResponse,
 } from "@multica/core/types";
 import { useIssueSurfaceController } from "./use-issue-surface-controller";
 import { IssueTableExportIntegrityError } from "../components/table-view-model";
@@ -153,6 +154,9 @@ describe("useIssueSurfaceController", () => {
   let getWorkspaceWorkingAgents: ReturnType<
     typeof vi.fn<() => Promise<WorkspaceWorkingAgent[]>>
   >;
+  let getWorkspaceExternalPresence: ReturnType<
+    typeof vi.fn<() => Promise<WorkspaceExternalPresenceResponse>>
+  >;
   let listIssueTableRows: ReturnType<typeof vi.fn>;
   let listIssueTableFacets: ReturnType<typeof vi.fn>;
   // Every row the current fixture holds, kept outside the mocked list endpoint
@@ -169,6 +173,12 @@ describe("useIssueSurfaceController", () => {
     getAgentTaskSnapshot = vi.fn(() => never<AgentTask[]>());
     getWorkspaceWorkingAgents = vi.fn(() =>
       Promise.resolve([] satisfies WorkspaceWorkingAgent[]),
+    );
+    getWorkspaceExternalPresence = vi.fn(() =>
+      Promise.resolve({
+        status: "ok",
+        presence: [],
+      } satisfies WorkspaceExternalPresenceResponse),
     );
     // The working-agents facet is server-side in production; here it reads the
     // same fixture the working-agents endpoint serves, so a test that moves one
@@ -192,6 +202,7 @@ describe("useIssueSurfaceController", () => {
       listProjects: vi.fn(() => never()),
       getAgentTaskSnapshot,
       getWorkspaceWorkingAgents,
+      getWorkspaceExternalPresence,
       getChildIssueProgress: vi.fn(() => never()),
     } as unknown as ApiClient);
     pruneIssueSurfaceViewStates([]);
@@ -1000,6 +1011,10 @@ describe("useIssueSurfaceController", () => {
         ] as unknown as AgentTask[]),
       ),
       getWorkspaceWorkingAgents,
+      getWorkspaceExternalPresence: async () => ({
+        status: "ok",
+        presence: [],
+      }),
       getChildIssueProgress: vi.fn(() => never()),
     } as unknown as ApiClient);
 
@@ -1041,6 +1056,10 @@ describe("useIssueSurfaceController", () => {
       listProjects: vi.fn(() => never()),
       getAgentTaskSnapshot: vi.fn(() => Promise.resolve([])),
       getWorkspaceWorkingAgents,
+      getWorkspaceExternalPresence: async () => ({
+        status: "ok",
+        presence: [],
+      }),
       getChildIssueProgress: vi.fn(() => never()),
     } as unknown as ApiClient);
 
@@ -1100,6 +1119,77 @@ describe("useIssueSurfaceController", () => {
       expect(getAgentTaskSnapshot).not.toHaveBeenCalled();
     },
   );
+
+  it("unions native and external active issue ids without treating waiting as working", async () => {
+    const store = getIssueSurfaceViewStore("project:p1");
+    store.getState().setViewMode("list");
+    store.getState().toggleAgentRunningFilter();
+    mockWorkingAgents([
+      makeWorkingAgent("agent-native", ["native-issue"]),
+    ]);
+    getWorkspaceExternalPresence.mockResolvedValue({
+      status: "ok",
+      presence: [
+        {
+          issue_id: "external-active",
+          issue_identifier: "MCIT-900",
+          executor_ref: "gpt-sol",
+          kind: "controltower_executor",
+          source: "controltower_execution_lease",
+          activity_state: "active",
+        },
+        {
+          issue_id: "external-waiting",
+          issue_identifier: "MCIT-901",
+          executor_ref: "gpt-sol",
+          kind: "controltower_executor",
+          source: "controltower_execution_lease",
+          activity_state: "waiting",
+        },
+      ],
+    });
+
+    const { result } = renderHook(
+      () =>
+        useIssueSurfaceController({
+          scope: { type: "project", projectId: "p1" },
+          modes: ["list"],
+        }),
+      { wrapper: makeWrapper(qc, "project:p1") },
+    );
+
+    await waitFor(() =>
+      expect(result.current.tableQuerySpec.filters.working_issue_ids).toEqual([
+        "native-issue",
+        "external-active",
+      ]),
+    );
+  });
+
+  it("fails the working filter closed when external presence is unavailable", async () => {
+    const store = getIssueSurfaceViewStore("project:p1");
+    store.getState().setViewMode("list");
+    store.getState().toggleAgentRunningFilter();
+    mockWorkingAgents([
+      makeWorkingAgent("agent-native", ["native-issue"]),
+    ]);
+    getWorkspaceExternalPresence.mockResolvedValue({
+      status: "unavailable",
+      presence: [],
+    });
+
+    const { result } = renderHook(
+      () =>
+        useIssueSurfaceController({
+          scope: { type: "project", projectId: "p1" },
+          modes: ["list"],
+        }),
+      { wrapper: makeWrapper(qc, "project:p1") },
+    );
+
+    await waitFor(() => expect(result.current.isWorkingFilterError).toBe(true));
+    expect(result.current.tableQuerySpec.filters.working_issue_ids).toBeUndefined();
+  });
 
   it("combines regular assignees with the independent running-task predicate", async () => {
     const store = getIssueSurfaceViewStore("project:p1");

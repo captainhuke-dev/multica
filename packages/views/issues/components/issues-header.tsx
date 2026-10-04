@@ -75,6 +75,7 @@ import type {
   IssueTableFacetsResponse,
   ProjectStatus,
   WorkingAgentSummary,
+  WorkspaceExternalPresenceResponse,
 } from "@multica/core/types";
 import { formatActorRef, isActorPropertyType, isFilterablePropertyType, isScalarPropertyType, propertyFilterValueKey, PROPERTY_FILTER_OP_SYMBOLS, PROPERTY_FILTER_OPS_BY_TYPE, type PropertyFilterOp, type PropertyFilterValue } from "@multica/core/types";
 import { ProjectIcon } from "../../projects/components/project-icon";
@@ -126,6 +127,7 @@ import { NO_PROPERTY_VALUE } from "../utils/filter";
 import { matchesPinyin } from "../../editor/extensions/pinyin-match";
 import { FILTER_ITEM_CLASS, HoverCheck } from "../../common/hover-check";
 import { WorkspaceAgentWorkingChip } from "./workspace-agent-working-chip";
+import { WorkspaceExternalPresenceChip } from "./workspace-external-presence-chip";
 import { TableColumnPicker } from "./table-view";
 
 type LocalDateRange = {
@@ -1191,6 +1193,7 @@ export function ViewRefreshIndicator({ active }: { active: boolean }) {
 export function IssuesHeader({
   scopedIssues,
   workingAgents,
+  externalPresence,
   allowGantt = false,
   dateFilter = null,
   onDateFilterChange,
@@ -1204,6 +1207,7 @@ export function IssuesHeader({
   /** See IssueSurfaceController.workingAgents — the surface-scoped projection
    *  behind the agents-working chip. */
   workingAgents: WorkingAgentSummary[] | undefined;
+  externalPresence?: WorkspaceExternalPresenceResponse;
   allowGantt?: boolean;
   dateFilter?: IssueDateFilter | null;
   onDateFilterChange?: (filter: IssueDateFilter | null) => void;
@@ -1378,6 +1382,7 @@ export function IssuesHeader({
             onToggle={toggleAgentRunningFilter}
             agents={workingAgents}
           />
+          <WorkspaceExternalPresenceChip presence={externalPresence} />
           <IssueDisplayControls
             scopedIssues={scopedIssues}
             allowGantt={allowGantt}

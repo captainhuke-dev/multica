@@ -15,11 +15,13 @@ import type {
   IssueTableFacetSpec,
   IssueTableFacetsResponse,
   WorkingAgentSummary,
+  WorkspaceExternalPresenceResponse,
 } from "@multica/core/types";
 import { type MyIssuesScope } from "@multica/core/issues/stores/my-issues-view-store";
 import { useViewStore } from "@multica/core/issues/stores/view-store-context";
 import { useT } from "../../i18n";
 import { WorkspaceAgentWorkingChip } from "../../issues/components/workspace-agent-working-chip";
+import { WorkspaceExternalPresenceChip } from "../../issues/components/workspace-external-presence-chip";
 import {
   IssueDisplayControls,
 } from "../../issues/components/issues-header";
@@ -45,6 +47,7 @@ const SAVE_VARIANT: Record<MyIssuesScope, Extract<SaveViewScope, { kind: "my" }>
 export function MyIssuesHeader({
   allIssues,
   workingAgents,
+  externalPresence,
   scope,
   onScopeChange,
   facetCountsExact = true,
@@ -56,6 +59,7 @@ export function MyIssuesHeader({
    *  working-agents endpoint for its own relation-scoped count; the surface
    *  projection now covers the relation AND every active filter. */
   workingAgents: WorkingAgentSummary[] | undefined;
+  externalPresence?: WorkspaceExternalPresenceResponse;
   scope: MyIssuesScope;
   onScopeChange: (scope: MyIssuesScope) => void;
   /** See IssueDisplayControls.facetCountsExact. */
@@ -166,6 +170,7 @@ export function MyIssuesHeader({
             onToggle={toggleAgentRunningFilter}
             agents={workingAgents}
           />
+          <WorkspaceExternalPresenceChip presence={externalPresence} />
           <IssueDisplayControls
             scopedIssues={allIssues}
             facetCountsExact={facetCountsExact}

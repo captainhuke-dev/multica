@@ -696,6 +696,21 @@
     "issues_count_other": "{{count}} issues",
     "chip_agents_working_unknown": "Agents working: —"
   },
+  "external_presence": {
+    "chip_unknown": "External work: —",
+    "chip_active_one": "{{count}} external active",
+    "chip_active_other": "{{count}} external active",
+    "unavailable_hover": "External execution presence is unavailable",
+    "empty_hover": "No external execution evidence right now",
+    "hover_header_one": "{{count}} external execution record",
+    "hover_header_other": "{{count}} external execution records",
+    "state": {
+      "active": "Active",
+      "waiting": "Waiting",
+      "stale": "Stale"
+    },
+    "non_active_note": "Waiting or stale evidence is shown for visibility only and does not imply execution authority."
+  },
   "filtered_empty": {
     "title": "No issues match these filters",
     "clear_button": "Clear filters"

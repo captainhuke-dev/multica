@@ -670,6 +670,19 @@
     "issues_count_other": "태스크 {{count}}개",
     "chip_agents_working_unknown": "작업 중인 에이전트: —"
   },
+  "external_presence": {
+    "chip_unknown": "외부 작업: —",
+    "chip_active_other": "외부 활성 {{count}}개",
+    "unavailable_hover": "외부 실행 상태를 불러올 수 없습니다",
+    "empty_hover": "현재 외부 실행 증거가 없습니다",
+    "hover_header_other": "외부 실행 기록 {{count}}개",
+    "state": {
+      "active": "활성",
+      "waiting": "대기 중",
+      "stale": "오래됨"
+    },
+    "non_active_note": "대기 중이거나 오래된 증거는 가시성 목적으로만 표시되며 실행 권한을 의미하지 않습니다."
+  },
   "filtered_empty": {
     "title": "필터 조건에 맞는 태스크가 없습니다",
     "clear_button": "필터 해제"

@@ -237,6 +237,7 @@ type Handler struct {
 	IssueStatusCatalog issuestatus.Querier
 	LivenessStore      LivenessStore
 	HeartbeatScheduler HeartbeatScheduler
+	ExternalPresence   *ExternalPresenceStore
 	Storage            storage.Storage
 	CFSigner           *auth.CloudFrontSigner
 	Analytics          analytics.Client
@@ -503,6 +504,7 @@ func New(queries *db.Queries, txStarter txStarter, hub *realtime.Hub, bus *event
 		LocalSkillImportStore:        NewInMemoryLocalSkillImportStore(),
 		LivenessStore:                NewNoopLivenessStore(),
 		HeartbeatScheduler:           NewPassthroughHeartbeatScheduler(queries),
+		ExternalPresence:             NewExternalPresenceStore(defaultExternalPresenceTTL),
 		Storage:                      store,
 		CFSigner:                     cfSigner,
 		Analytics:                    analyticsClient,

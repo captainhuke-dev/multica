@@ -10,6 +10,12 @@ export const agentTaskSnapshotKeys = {
   list: (wsId: string) => [...agentTaskSnapshotKeys.all(wsId), "list"] as const,
 };
 
+export const workspaceExternalPresenceKeys = {
+  all: (wsId: string) => ["workspaces", wsId, "external-presence"] as const,
+  current: (wsId: string) =>
+    [...workspaceExternalPresenceKeys.all(wsId), "current"] as const,
+};
+
 export const workspaceWorkingAgentsKeys = {
   all: (wsId: string) => ["workspaces", wsId, "working-agents"] as const,
   list: (
@@ -68,6 +74,17 @@ export function agentTaskSnapshotOptions(wsId: string) {
 // one issue's direct children. Task lifecycle WebSocket events invalidate
 // every narrowing immediately; the short stale time is the reconnect /
 // missed-event safety net.
+export function workspaceExternalPresenceOptions(wsId: string) {
+  return queryOptions({
+    queryKey: workspaceExternalPresenceKeys.current(wsId),
+    queryFn: () => api.getWorkspaceExternalPresence(),
+    staleTime: 10 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchInterval: 15 * 1000,
+    refetchOnWindowFocus: true,
+  });
+}
+
 export function workspaceWorkingAgentsOptions(
   wsId: string,
   type?: WorkspaceWorkingAgentType,

@@ -235,6 +235,10 @@ func (c *Client) Token() string {
 	return c.token
 }
 
+func (c *Client) ReportExternalPresence(ctx context.Context, runtimeID string, report ExternalPresenceReport) error {
+	return c.postJSON(ctx, fmt.Sprintf("/api/daemon/runtimes/%s/external-presence", runtimeID), report, nil)
+}
+
 func (c *Client) ClaimTask(ctx context.Context, runtimeID string) (*Task, error) {
 	var resp struct {
 		Task *Task `json:"task"`

@@ -248,6 +248,34 @@ export type WorkspaceWorkingAgentMineRelation =
   | "involved"
   | "any";
 
+export type ExternalPresenceActivity =
+  | "active"
+  | "waiting"
+  | "blocked"
+  | "stale"
+  | "unknown"
+  | "inactive";
+
+export interface ExternalPresenceRow {
+  issue_id: string;
+  issue_identifier: string;
+  executor_ref?: string;
+  kind: string;
+  source: string;
+  run_id?: string;
+  generation?: number;
+  pipeline_state?: string;
+  activity_state: ExternalPresenceActivity;
+  acquired_at?: string;
+  heartbeat_at?: string;
+  host?: string;
+}
+
+export interface WorkspaceExternalPresenceResponse {
+  status: "ok" | "unavailable";
+  presence: ExternalPresenceRow[];
+}
+
 /**
  * A departed-member-safe user ref resolved from the global user table. `name` /
  * `email` / `avatar_url` are absent until the server hydrates them (present on

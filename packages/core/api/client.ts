@@ -46,6 +46,7 @@ import type {
   WorkspaceWorkingAgent,
   WorkspaceWorkingAgentMineRelation,
   WorkspaceWorkingAgentType,
+  WorkspaceExternalPresenceResponse,
   AgentRuntime,
   RuntimeProfile,
   CreateRuntimeProfileRequest,
@@ -2771,6 +2772,10 @@ export class ApiClient {
     }
     const query = search.toString();
     return this.fetch(`/api/working-agents${query ? `?${query}` : ""}`);
+  }
+
+  async getWorkspaceExternalPresence(): Promise<WorkspaceExternalPresenceResponse> {
+    return this.fetch(`/api/external-presence`);
   }
 
   // Per-agent daily activity for the last 30 days, anchored on
