@@ -134,6 +134,10 @@ type Config struct {
 	PollInterval                   time.Duration
 	WSClaimPollInterval            time.Duration // upper bound for healthy WS batch-claim safety polls; actual sleeps use downward-only jitter
 	HeartbeatInterval              time.Duration
+	ExternalPresenceCommand        string
+	ExternalPresenceArgs           []string
+	ExternalPresenceInterval       time.Duration
+	ExternalPresenceTimeout        time.Duration
 	AgentTimeout                   time.Duration
 	CodexSemanticInactivityTimeout time.Duration
 	// CodexFirstTurnNoProgressTimeout is an explicit override for the Codex
@@ -320,6 +324,26 @@ func LoadConfig(overrides Overrides) (Config, error) {
 	}
 	if overrides.HeartbeatInterval > 0 {
 		heartbeatInterval = overrides.HeartbeatInterval
+	}
+
+	externalPresenceCommand := strings.TrimSpace(os.Getenv("MULTICA_EXTERNAL_PRESENCE_COMMAND"))
+	externalPresenceArgs, err := shellwords.Parse(os.Getenv("MULTICA_EXTERNAL_PRESENCE_ARGS"))
+	if err != nil {
+		return Config{}, fmt.Errorf("parse MULTICA_EXTERNAL_PRESENCE_ARGS: %w", err)
+	}
+	externalPresenceInterval, err := durationFromEnv("MULTICA_EXTERNAL_PRESENCE_INTERVAL", heartbeatInterval)
+	if err != nil {
+		return Config{}, err
+	}
+	externalPresenceTimeout, err := durationFromEnv("MULTICA_EXTERNAL_PRESENCE_TIMEOUT", 3*time.Second)
+	if err != nil {
+		return Config{}, err
+	}
+	if externalPresenceCommand != "" && externalPresenceTimeout <= 0 {
+		return Config{}, fmt.Errorf("MULTICA_EXTERNAL_PRESENCE_TIMEOUT must be positive when external presence is enabled")
+	}
+	if externalPresenceCommand != "" && externalPresenceInterval <= 0 {
+		return Config{}, fmt.Errorf("MULTICA_EXTERNAL_PRESENCE_INTERVAL must be positive when external presence is enabled")
 	}
 
 	agentTimeout, err := durationFromEnv("MULTICA_AGENT_TIMEOUT", DefaultAgentTimeout)
@@ -653,6 +677,10 @@ func LoadConfig(overrides Overrides) (Config, error) {
 		PollInterval:                    pollInterval,
 		WSClaimPollInterval:             wsClaimPollInterval,
 		HeartbeatInterval:               heartbeatInterval,
+		ExternalPresenceCommand:         externalPresenceCommand,
+		ExternalPresenceArgs:            externalPresenceArgs,
+		ExternalPresenceInterval:        externalPresenceInterval,
+		ExternalPresenceTimeout:         externalPresenceTimeout,
 		AgentTimeout:                    agentTimeout,
 		CodexSemanticInactivityTimeout:  codexSemanticInactivityTimeout,
 		CodexFirstTurnNoProgressTimeout: codexFirstTurnNoProgressTimeout,

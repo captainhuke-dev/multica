@@ -45,6 +45,7 @@ export function MyIssuesPage() {
               <MyIssuesHeader
                 allIssues={controller.surfaceIssues}
                 workingAgents={controller.workingAgents}
+                externalPresence={controller.externalPresence}
                 scope={scope}
                 onScopeChange={setScope}
                 facetCountsExact={controller.facetCountsExact}

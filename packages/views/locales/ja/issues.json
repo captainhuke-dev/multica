@@ -670,6 +670,19 @@
     "issues_count_other": "タスク {{count}} 件",
     "chip_agents_working_unknown": "作業中のエージェント: —"
   },
+  "external_presence": {
+    "chip_unknown": "外部作業: —",
+    "chip_active_other": "外部アクティブ {{count}} 件",
+    "unavailable_hover": "外部実行プレゼンスを取得できません",
+    "empty_hover": "現在、外部実行の証跡はありません",
+    "hover_header_other": "外部実行レコード {{count}} 件",
+    "state": {
+      "active": "実行中",
+      "waiting": "待機中",
+      "stale": "古い"
+    },
+    "non_active_note": "待機中または古い証跡は可視化のためだけに表示され、実行権限を意味しません。"
+  },
   "filtered_empty": {
     "title": "フィルター条件に一致するタスクがありません",
     "clear_button": "フィルターを解除"

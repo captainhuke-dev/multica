@@ -88,6 +88,7 @@ import type {
   User,
   WebhookDelivery,
   WorkspaceMcpServer,
+  WorkspaceExternalPresenceResponse,
 } from "../types";
 import type { CloudRuntimeNode } from "../runtimes/cloud-runtime";
 import type { CreateFeedbackResponse } from "../feedback/types";
@@ -1961,6 +1962,31 @@ export const AgentActivityBucketListSchema = z.array(z.object({
   duration_ms: z.number().nonnegative().optional().catch(undefined),
   duration_count: z.number().int().nonnegative().optional().catch(undefined),
 }).loose());
+
+const ExternalPresenceRowSchema = z.object({
+  issue_id: z.string(),
+  issue_identifier: z.string(),
+  executor_ref: z.string().optional().catch(undefined),
+  kind: z.string(),
+  source: z.string(),
+  run_id: z.string().optional().catch(undefined),
+  generation: z.number().int().optional().catch(undefined),
+  pipeline_state: z.string().optional().catch(undefined),
+  activity_state: z.enum(["active", "waiting", "blocked", "stale", "unknown", "inactive"]),
+  acquired_at: z.string().optional().catch(undefined),
+  heartbeat_at: z.string().optional().catch(undefined),
+  host: z.string().optional().catch(undefined),
+}).loose();
+
+export const WorkspaceExternalPresenceResponseSchema: z.ZodType<WorkspaceExternalPresenceResponse> = z.object({
+  status: z.enum(["ok", "unavailable"]),
+  presence: z.array(ExternalPresenceRowSchema),
+}).loose();
+
+export const UNAVAILABLE_WORKSPACE_EXTERNAL_PRESENCE: WorkspaceExternalPresenceResponse = {
+  status: "unavailable",
+  presence: [],
+};
 
 export const AgentTaskListSchema = z.array(AgentTaskSchema);
 

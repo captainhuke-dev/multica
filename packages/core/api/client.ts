@@ -46,6 +46,7 @@ import type {
   WorkspaceWorkingAgent,
   WorkspaceWorkingAgentMineRelation,
   WorkspaceWorkingAgentType,
+  WorkspaceExternalPresenceResponse,
   AgentRuntime,
   RuntimeProfile,
   CreateRuntimeProfileRequest,
@@ -253,6 +254,8 @@ import {
   AgentTaskListSchema,
   AgentTaskPageSchema,
   AgentActivityBucketListSchema,
+  WorkspaceExternalPresenceResponseSchema,
+  UNAVAILABLE_WORKSPACE_EXTERNAL_PRESENCE,
   AttachmentResponseSchema,
   CancelTaskResponseSchema,
   ChatDraftRestoresResponseSchema,
@@ -2771,6 +2774,16 @@ export class ApiClient {
     }
     const query = search.toString();
     return this.fetch(`/api/working-agents${query ? `?${query}` : ""}`);
+  }
+
+  async getWorkspaceExternalPresence(): Promise<WorkspaceExternalPresenceResponse> {
+    const raw = await this.fetch<unknown>(`/api/external-presence`);
+    return parseWithFallback(
+      raw,
+      WorkspaceExternalPresenceResponseSchema,
+      UNAVAILABLE_WORKSPACE_EXTERNAL_PRESENCE,
+      { endpoint: "GET /api/external-presence" },
+    );
   }
 
   // Per-agent daily activity for the last 30 days, anchored on

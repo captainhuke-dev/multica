@@ -12,8 +12,12 @@ import type {
   IssueTableQuerySpec,
   Project,
   WorkingAgentSummary,
+  WorkspaceExternalPresenceResponse,
 } from "@multica/core/types";
-import { workspaceWorkingAgentsOptions } from "@multica/core/agents";
+import {
+  workspaceExternalPresenceOptions,
+  workspaceWorkingAgentsOptions,
+} from "@multica/core/agents";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useIssueStatuses } from "@multica/core/issue-statuses/hooks";
 import { statusFilterColumns, visibleStatusKeys } from "@multica/core/issues";
@@ -79,6 +83,7 @@ export interface IssueSurfaceController {
    *  not resolved yet; the chip renders an indeterminate state rather than a
    *  number it cannot stand behind. */
   workingAgents: WorkingAgentSummary[] | undefined;
+  externalPresence: WorkspaceExternalPresenceResponse | undefined;
   filteredGanttIssues: Issue[];
   sort: IssueSortParam;
   ganttIssues: Issue[];
@@ -415,6 +420,12 @@ export function useIssueSurfaceController({
         ? "any"
         : scope.relation
       : undefined;
+  const externalPresenceProjection = useQuery({
+    ...workspaceExternalPresenceOptions(wsId),
+    enabled:
+      wsId.length > 0 && typeof api.getWorkspaceExternalPresence === "function",
+  });
+
   const workingAgentsProjection = useQuery({
     ...workspaceWorkingAgentsOptions(wsId, "issue", workingAgentMineRelation),
     // Ordinary surfaces get their chip count from the scoped facet. Only an
@@ -422,19 +433,34 @@ export function useIssueSurfaceController({
     enabled: usesGantt || agentRunningFilter,
   });
   const workspaceWorkingAgents = workingAgentsProjection.data ?? EMPTY_LIST;
+  const externalPresence = externalPresenceProjection.data;
+  const externalPresenceUnavailable =
+    externalPresence?.status === "unavailable";
   const workingFilterUnresolved =
-    agentRunningFilter && workingAgentsProjection.data === undefined;
+    agentRunningFilter &&
+    (workingAgentsProjection.data === undefined ||
+      externalPresence === undefined ||
+      externalPresenceUnavailable);
   const workingFilterPending =
-    workingFilterUnresolved && workingAgentsProjection.isPending;
+    workingFilterUnresolved &&
+    (workingAgentsProjection.isPending || externalPresenceProjection.isPending);
   const workingFilterError =
-    workingFilterUnresolved && workingAgentsProjection.isError;
+    workingFilterUnresolved &&
+    (workingAgentsProjection.isError ||
+      externalPresenceProjection.isError ||
+      externalPresenceUnavailable);
   const workingIssueIDs = useMemo(() => {
     const issueIDs = new Set<string>();
     for (const agent of workspaceWorkingAgents) {
       for (const issueID of agent.issue_ids) issueIDs.add(issueID);
     }
+    if (externalPresence?.status === "ok") {
+      for (const row of externalPresence.presence) {
+        if (row.activity_state === "active") issueIDs.add(row.issue_id);
+      }
+    }
     return issueIDs;
-  }, [workspaceWorkingAgents]);
+  }, [externalPresence, workspaceWorkingAgents]);
 
   const derivedTableQuerySpec = useMemo<IssueTableQuerySpec>(() => {
     let queryScope: IssueTableQuerySpec["scope"];
@@ -861,6 +887,7 @@ export function useIssueSurfaceController({
     ...surfaceData,
     isLoading: data.isLoading || workingFilterPending,
     workingAgents,
+    externalPresence: externalPresenceProjection.data,
     hasActiveFilters,
     statusPagination: usesServerStatusSurface
       ? data.statusPagination
@@ -887,6 +914,7 @@ export function useIssueSurfaceController({
     isWorkingFilterError: workingFilterError,
     retryWorkingFilter: () => {
       void workingAgentsProjection.refetch();
+      void externalPresenceProjection.refetch();
     },
     sort,
     actions,

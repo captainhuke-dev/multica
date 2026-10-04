@@ -696,6 +696,21 @@
     "issues_count_other": "{{count}} tâches",
     "chip_agents_working_unknown": "Agents au travail : —"
   },
+  "external_presence": {
+    "chip_unknown": "Travail externe : —",
+    "chip_active_one": "{{count}} externe actif",
+    "chip_active_other": "{{count}} externes actifs",
+    "unavailable_hover": "La présence d'exécution externe est indisponible",
+    "empty_hover": "Aucune preuve d'exécution externe pour le moment",
+    "hover_header_one": "{{count}} enregistrement d'exécution externe",
+    "hover_header_other": "{{count}} enregistrements d'exécution externe",
+    "state": {
+      "active": "Actif",
+      "waiting": "En attente",
+      "stale": "Périmé"
+    },
+    "non_active_note": "Les preuves en attente ou périmées sont affichées uniquement pour visibilité et n'accordent aucune autorité d'exécution."
+  },
   "filtered_empty": {
     "title": "Aucune tâche ne correspond à ces filtres",
     "clear_button": "Effacer les filtres"

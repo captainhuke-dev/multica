@@ -388,6 +388,9 @@ describe("IssueSurface — table pagination ownership", () => {
         ),
       ),
       getWorkspaceWorkingAgents,
+      getWorkspaceExternalPresence: vi.fn(() =>
+        Promise.resolve({ status: "ok", presence: [] }),
+      ),
       getChildIssueProgress: vi.fn(() => never()),
       listProperties: vi.fn(() => never()),
       listMembers: vi.fn(() => never()),
@@ -784,6 +787,9 @@ describe("IssueSurface — filtered empty state", () => {
       listProjects: vi.fn(() => never()),
       getAgentTaskSnapshot: vi.fn(() => never<AgentTask[]>()),
       getWorkspaceWorkingAgents: vi.fn(() => Promise.resolve([])),
+      getWorkspaceExternalPresence: vi.fn(() =>
+        Promise.resolve({ status: "ok", presence: [] }),
+      ),
       getChildIssueProgress: vi.fn(() => never()),
     } as unknown as ApiClient);
     pruneIssueSurfaceViewStates([]);

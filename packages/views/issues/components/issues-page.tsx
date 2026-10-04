@@ -6,6 +6,7 @@ import type {
   IssueTableFacetSpec,
   IssueTableFacetsResponse,
   WorkingAgentSummary,
+  WorkspaceExternalPresenceResponse,
 } from "@multica/core/types";
 import { useIssuesScope } from "@multica/core/issues/stores/issues-scope-store";
 import { useViewStore } from "@multica/core/issues/stores/view-store-context";
@@ -18,6 +19,7 @@ import { IssuesHeader } from "./issues-header";
 function IssuesSurfaceHeader({
   issues,
   workingAgents,
+  externalPresence,
   isRefreshing,
   facetCountsExact,
   tableFacetCounts,
@@ -25,6 +27,7 @@ function IssuesSurfaceHeader({
 }: {
   issues: Issue[];
   workingAgents: WorkingAgentSummary[] | undefined;
+  externalPresence: WorkspaceExternalPresenceResponse | undefined;
   isRefreshing: boolean;
   facetCountsExact: boolean;
   tableFacetCounts?: IssueTableFacetsResponse;
@@ -45,6 +48,7 @@ function IssuesSurfaceHeader({
       <IssuesHeader
         scopedIssues={issues}
         workingAgents={workingAgents}
+        externalPresence={externalPresence}
         dateFilter={dateFilter}
         onDateFilterChange={setDateFilter}
         facetCountsExact={facetCountsExact}
@@ -69,6 +73,7 @@ export function IssuesPage() {
           <IssuesSurfaceHeader
             issues={controller.surfaceIssues}
             workingAgents={controller.workingAgents}
+            externalPresence={controller.externalPresence}
             isRefreshing={controller.isRefreshing}
             facetCountsExact={controller.facetCountsExact}
             tableFacetCounts={controller.tableFacetCounts}

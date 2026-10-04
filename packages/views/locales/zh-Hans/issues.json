@@ -670,6 +670,19 @@
     "issues_count_other": "{{count}} 个任务",
     "chip_agents_working_unknown": "工作中的智能体：—"
   },
+  "external_presence": {
+    "chip_unknown": "外部工作：—",
+    "chip_active_other": "{{count}} 个外部执行中",
+    "unavailable_hover": "外部执行状态当前不可用",
+    "empty_hover": "当前没有外部执行证据",
+    "hover_header_other": "{{count}} 条外部执行记录",
+    "state": {
+      "active": "执行中",
+      "waiting": "等待中",
+      "stale": "已过期"
+    },
+    "non_active_note": "等待中或已过期的证据仅用于可见性，不代表执行权限。"
+  },
   "filtered_empty": {
     "title": "没有符合筛选条件的任务",
     "clear_button": "清除筛选"

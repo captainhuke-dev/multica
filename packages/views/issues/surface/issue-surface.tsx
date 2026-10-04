@@ -267,6 +267,7 @@ function IssueSurfaceContent({
           <IssuesHeader
             scopedIssues={controller.surfaceIssues}
             workingAgents={controller.workingAgents}
+            externalPresence={controller.externalPresence}
             allowGantt={controller.allowGantt}
             isRefreshing={controller.isRefreshing}
             facetCountsExact={
