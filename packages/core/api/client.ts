@@ -254,6 +254,8 @@ import {
   AgentTaskListSchema,
   AgentTaskPageSchema,
   AgentActivityBucketListSchema,
+  WorkspaceExternalPresenceResponseSchema,
+  UNAVAILABLE_WORKSPACE_EXTERNAL_PRESENCE,
   AttachmentResponseSchema,
   CancelTaskResponseSchema,
   ChatDraftRestoresResponseSchema,
@@ -2775,7 +2777,13 @@ export class ApiClient {
   }
 
   async getWorkspaceExternalPresence(): Promise<WorkspaceExternalPresenceResponse> {
-    return this.fetch(`/api/external-presence`);
+    const raw = await this.fetch<unknown>(`/api/external-presence`);
+    return parseWithFallback(
+      raw,
+      WorkspaceExternalPresenceResponseSchema,
+      UNAVAILABLE_WORKSPACE_EXTERNAL_PRESENCE,
+      { endpoint: "GET /api/external-presence" },
+    );
   }
 
   // Per-agent daily activity for the last 30 days, anchored on
