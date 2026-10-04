@@ -31,6 +31,7 @@ import (
 	"github.com/multica-ai/multica/server/internal/scheduler"
 	"github.com/multica-ai/multica/server/internal/selfhosttelemetry"
 	"github.com/multica-ai/multica/server/internal/service"
+	"github.com/multica-ai/multica/server/internal/terminalbudget"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 	"github.com/multica-ai/multica/server/pkg/featureflag"
 	"github.com/multica-ai/multica/server/pkg/llm"
@@ -172,7 +173,18 @@ func responseEngineHTTPTimeoutFromEnv() time.Duration {
 		responseEngineHTTPTimeoutEnv,
 		int(defaultResponseEngineHTTPTimeout/time.Second),
 	)
-	return time.Duration(seconds) * time.Second
+	timeout := time.Duration(seconds) * time.Second
+	if timeout > terminalbudget.MaxResponseEngineHTTPTimeout {
+		slog.Warn(
+			"response engine timeout exceeds daemon terminal callback budget; clamping",
+			"name", responseEngineHTTPTimeoutEnv,
+			"value", timeout,
+			"max", terminalbudget.MaxResponseEngineHTTPTimeout,
+			"daemon_terminal_timeout", terminalbudget.CallbackHTTPTimeout,
+		)
+		return terminalbudget.MaxResponseEngineHTTPTimeout
+	}
+	return timeout
 }
 
 func parseResponseEngineStartupConfig(

@@ -213,13 +213,13 @@ const (
 	terminalTaskReportComplete terminalTaskReportKind = iota + 1
 	terminalTaskReportFail
 
-	// CompleteTask and FailTask can make six 30-second HTTP attempts around
-	// the five backoffs in defaultTerminalRetrySchedule (124 seconds total).
-	// Keep the detached callback's own deadline above that worst-case budget
-	// so it does not silently shorten the client's existing retry contract.
-	// During daemon restart pollLoop still imposes its separate 30-second
-	// process drain boundary.
-	terminalTaskReportTimeout = 6 * time.Minute
+	// CompleteTask and FailTask can make six 60-second terminal HTTP attempts
+	// around the five backoffs in defaultTerminalRetrySchedule (124 seconds
+	// total), for a worst-case 484-second client budget. Keep the detached
+	// callback's own deadline above that ceiling so it never silently shortens
+	// the terminal delivery contract. During daemon restart pollLoop still
+	// imposes its separate 30-second process drain boundary.
+	terminalTaskReportTimeout = 9 * time.Minute
 )
 
 // terminalTaskReport is the single daemon-side representation of a terminal

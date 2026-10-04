@@ -23,10 +23,21 @@ import (
 
 	"github.com/multica-ai/multica/server/internal/daemon/execenv"
 	"github.com/multica-ai/multica/server/internal/daemon/repocache"
+	"github.com/multica-ai/multica/server/internal/terminalbudget"
 	"github.com/multica-ai/multica/server/pkg/agent"
 	"github.com/multica-ai/multica/server/pkg/taskfailure"
 	"github.com/pelletier/go-toml/v2"
 )
+
+func TestTerminalTaskReportTimeoutCoversRetryBudget(t *testing.T) {
+	worstCase := 6 * terminalbudget.CallbackHTTPTimeout
+	for _, backoff := range defaultTerminalRetrySchedule {
+		worstCase += backoff
+	}
+	if terminalTaskReportTimeout <= worstCase {
+		t.Fatalf("terminalTaskReportTimeout = %s, must exceed retry worst case %s", terminalTaskReportTimeout, worstCase)
+	}
+}
 
 func createDaemonTestRepo(t *testing.T) string {
 	t.Helper()
